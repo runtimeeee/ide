@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Runtimeeeee IDE</title>
+<style>
+body, html{
+  margin:0; padding:0;
+  width:100%; height:100%;
+  overflow:hidden;
+  font-family:sans-serif;
+  background:#1e1e1e;
+  color:white;
+}
+
+/* SPLASH */
+#splash{
+  position:fixed; top:0; left:0;
+  width:100%; height:100%;
+  background:#1e1e1e;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  flex-direction:row;
+  z-index:9999;
+}
+.letter{
+  opacity:0;
+  display:inline-block;
+  transform:scale(2);
+  transition: transform 0.5s ease, opacity 0.5s ease;
+  font-size:120px; font-weight:bold;
+  color:#4da3ff;
+}
+.letter:first-child{
+  opacity:1; transform:scale(4);
+  transition: transform 1s ease, opacity 0.5s ease;
+}
+
+/* TOOLBAR */
+#toolbar{
+  background:#2b2b2b;
+  padding:10px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  flex-wrap:wrap;
+}
+#leftTools{ display:flex; gap:10px; flex-wrap:wrap;}
+#brand{ font-weight:bold; font-size:20px; color:#4da3ff;}
+
+/* DESKTOP */
+#desktop{
+  position:relative;
+  height:90vh; width:100%;
+  overflow:hidden;
+}
+.window{
+  position:absolute;
+  width:80%; height:70%;
+  max-width:1200px; max-height:900px;
+  min-width:600px; min-height:400px;
+  background:#2d2d2d;
+  border:1px solid #555;
+  display:flex;
+  flex-direction:column;
+}
+.titlebar{
+  background:#3c3c3c;
+  padding:10px;
+  display:flex;
+  justify-content:space-between;
+  cursor:move;
+  gap:5px;
+}
+.frame{
+  flex:1; border:none;
+  width:100%; height:100%;
+}
+.topfullscreen{ box-shadow:0 0 20px #4da3ff; z-index:99999 !important;}
+.iframe-full{ box-shadow:0 0 20px #4da3ff;}
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/v86@0.5.319/build/libv86.js"></script>
+
+</head>
+<body>
+
+<!-- SPLASH -->
+<div id="splash">
+  <span class="letter">R</span>
+  <span class="letter">u</span>
+  <span class="letter">n</span>
+  <span class="letter">t</span>
+  <span class="letter">i</span>
+  <span class="letter">m</span>
+  <span class="letter">e</span>
+  <span class="letter">e</span>
+  <span class="letter">e</span>
+  <span class="letter">e</span>
+  <span class="letter">I</span>
+  <span class="letter">D</span>
+  <span class="letter">E</span>
+</div>
+
+<!-- IDE -->
+<div id="ide" style="display:none;">
+  <div id="toolbar">
+    <div id="leftTools">
+      <button id="uploadSingleFile">Upload Single HTML/JS/CSS File</button>
+      <button id="uploadMultipleFiles">Upload Multiple HTML/JS/CSS Files</button>
+      <button id="uploadSingleApp">Upload Single App File</button>
+      <button id="uploadMultipleApps">Upload Multiple App Files</button>
+      <button id="openLinuxVM">Open Linux VM</button>
+      <button id="editGlobal">Edit Code</button>
+      <button id="previewGlobal">Preview App</button>
+    </div>
+    <div id="brand">RuntimeeeeeIDE</div>
+  </div>
+  <div id="desktop"></div>
+</div>
+
+<script>
+// SPLASH ANIMATION
+const letters = document.querySelectorAll('.letter');
+letters.forEach((letter,index)=>{
+  if(index===0) return;
+  setTimeout(()=>{ letter.style.opacity=1; letter.style.transform='scale(1)'; }, index*200+600);
+});
+setTimeout(()=> letters[0].style.transform='scale(1)', 600);
+setTimeout(()=>{
+  document.getElementById('splash').style.opacity=0;
+  setTimeout(()=>{
+    document.getElementById('splash').style.display='none';
+    document.getElementById('ide').style.display='block';
+  },800);
+}, letters.length*200 + 1200);
+
+/* IDE LOGIC */
+const desktop = document.getElementById("desktop");
+let currentCode="";
+let currentContainer=null;
+
+document.getElementById("editGlobal").onclick=()=>{ if(currentContainer) openEditor(currentContainer,currentCode); };
+document.getElementById("previewGlobal").onclick=()=>{ if(currentContainer) runApp(currentContainer,currentCode); };
+
+// DRAG FUNCTION
+function drag(el,header){
+  let x=0,y=0,dx=0,dy=0;
+  header.onmousedown=e=>{
+    dx=e.clientX; dy=e.clientY;
+    document.onmousemove=move;
+    document.onmouseup=stop;
+  };
+  function move(e){
+    x=dx-e.clientX; y=dy-e.clientY;
+    dx=e.clientX; dy=e.clientY;
+    el.style.top=(el.offsetTop-y)+"px";
+    el.style.left=(el.offsetLeft-x)+"px";
+  }
+  function stop(){ document.onmousemove=null; }
+}
+
+// RUN APP PREVIEW
+function runApp(container,code){
+  container.innerHTML="";
+  let frame=document.createElement("iframe");
+  frame.style.width="100%"; frame.style.height="100%";
+  frame.srcdoc=code;
+  container.appendChild(frame);
+}
+
+// OPEN EDITOR
+function openEditor(container,code){
+  container.innerHTML=`<div id="editor"></div>`;
+  require.config({ paths:{vs:'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs'} });
+  require(['vs/editor/editor.main'],function(){
+    window.editor = monaco.editor.create(document.getElementById('editor'),{
+      value:code,
+      language:"html",
+      theme:"vs-dark",
+      automaticLayout:true
+    });
+  });
+  let save=document.createElement("button");
+  save.textContent="Save + Run";
+  save.style.position="absolute"; save.style.top="60px"; save.style.right="20px";
+  container.appendChild(save);
+  save.onclick=()=>{
+    currentCode=editor.getValue();
+    runApp(container,currentCode);
+  };
+}
+
+// CREATE WINDOW
+function createWindow(fileName, code, isApp=false){
+  let win=document.createElement("div");
+  win.className="window";
+  win.style.top=`${desktop.offsetHeight*0.1}px`;
+  win.style.left=`${desktop.offsetWidth*0.1}px`;
+
+  let title=document.createElement("div"); title.className="titlebar";
+  let label=document.createElement("span"); label.textContent=fileName;
+
+  let fsButton=document.createElement("button"); fsButton.textContent="Fullscreen (IDE)";
+  let fsTopButton=document.createElement("button"); fsTopButton.textContent="Full Fullscreen";
+  let fsIframeButton=document.createElement("button"); fsIframeButton.textContent="Iframe Fullscreen";
+
+  title.appendChild(label); title.appendChild(fsButton); title.appendChild(fsTopButton); title.appendChild(fsIframeButton);
+
+  let container=document.createElement("div"); container.className="frame";
+  win.appendChild(title); win.appendChild(container);
+  desktop.appendChild(win);
+  drag(win,title);
+
+  if(!isApp || fileName.endsWith(".html") || fileName.endsWith(".js")){
+    runApp(container,code);
+  } else {
+    container.innerHTML=`<div style="padding:10px; color:#ccc;">
+      <p>Windows/native apps cannot run here.<br>Use the Linux VM button to open a Linux VM.</p></div>`;
+  }
+
+  fsButton.onclick=()=>{
+    win.style.position="absolute"; 
+    win.style.top=`${desktop.offsetHeight*0.05}px`; 
+    win.style.left=`${desktop.offsetWidth*0.05}px`;
+    win.style.width=`${desktop.offsetWidth*0.9}px`; 
+    win.style.height=`${desktop.offsetHeight*0.85}px`;
+  };
+  fsTopButton.onclick=()=>{
+    if(!win.classList.contains("topfullscreen")){
+      win.classList.add("topfullscreen");
+      win.style.position="fixed"; win.style.top=0; win.style.left=0;
+      win.style.width="100%"; win.style.height="100%";
+    } else {
+      win.classList.remove("topfullscreen");
+      win.style.width="80%"; win.style.height="70%";
+      win.style.top=`${desktop.offsetHeight*0.1}px`;
+      win.style.left=`${desktop.offsetWidth*0.1}px`;
+      win.style.position="absolute";
+    }
+  };
+  fsIframeButton.onclick=()=>{
+    let frame=container.querySelector('iframe');
+    if(!frame) return;
+    if(!frame.classList.contains('iframe-full')){
+      frame.classList.add('iframe-full');
+      frame.style.position='absolute'; frame.style.top='0'; frame.style.left='0';
+      frame.style.width='100%'; frame.style.height='100%'; frame.style.zIndex=9999;
+    } else {
+      frame.classList.remove('iframe-full');
+      frame.style.position=''; frame.style.top=''; frame.style.left='';
+      frame.style.width='100%'; frame.style.height='100%'; frame.style.zIndex='';
+    }
+  };
+}
+
+// UPLOAD HANDLERS
+function handleUpload(single, app=false){
+  const input=document.createElement("input"); 
+  input.type="file"; input.multiple=!single;
+  if(app) input.accept=".html,.js,.wasm,.exe,.deb,.AppImage,.rpm";
+  else input.accept=".html,.js,.css";
+
+  input.onchange=e=>{
+    const files=e.target.files;
+    Array.from(files).forEach(file=>{
+      file.text().then(code=>{
+        createWindow(file.name, code, app);
+
+        // AUTO OPEN LINUX VM
+        const linuxExtensions = ['.deb', '.AppImage', '.rpm'];
+        if(linuxExtensions.some(ext => file.name.endsWith(ext))){
+          document.getElementById("openLinuxVM").click();
+        }
+      });
+    });
+  };
+  input.click();
+}
+
+document.getElementById("uploadSingleFile").onclick=()=>handleUpload(true,false);
+document.getElementById("uploadMultipleFiles").onclick=()=>handleUpload(false,false);
+document.getElementById("uploadSingleApp").onclick=()=>handleUpload(true,true);
+document.getElementById("uploadMultipleApps").onclick=()=>handleUpload(false,true);
+
+// LINUX VM
+document.getElementById("openLinuxVM").onclick=()=>{
+  let vmWin=document.createElement("div"); vmWin.className="window";
+  vmWin.style.top=`${desktop.offsetHeight*0.1}px`;
+  vmWin.style.left=`${desktop.offsetWidth*0.1}px`;
+
+  let title=document.createElement("div"); title.className="titlebar";
+  title.innerHTML=`<span>Linux VM</span>`;
+  vmWin.appendChild(title);
+
+  let vmContainer=document.createElement("div"); vmContainer.className="frame";
+  vmWin.appendChild(vmContainer); desktop.appendChild(vmWin);
+  drag(vmWin,title);
+
+  const vm = new V86Starter({
+    wasm_url: "https://runtimeeee.github.io/ide/vm/v86.wasm",
+    bios_url: "https://runtimeeee.github.io/ide/vm/seabios.bin",
+    vga_bios_url: "https://runtimeeee.github.io/ide/vm/vgabios.bin",
+    cdrom_url: "https://runtimeeee.github.io/ide/vm/linux.iso",
+    autostart: true,
+    screen_container: vmContainer
+  });
+};
+</script>
+</body>
+</html>
