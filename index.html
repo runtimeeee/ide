@@ -4,75 +4,143 @@
 <meta charset="UTF-8">
 <title>RuntimeeeeIDE</title>
 <style>
-body, html { margin:0; padding:0; width:100%; height:100%; overflow:hidden; font-family:sans-serif; background:#1e1e1e; color:white; }
-#splash { position:fixed; top:0; left:0; width:100%; height:100%; background:#1e1e1e; display:flex; justify-content:center; align-items:center; flex-direction:row; z-index:9999; }
-.letter { opacity:0; display:inline-block; transform:scale(2); transition: transform 0.5s ease, opacity 0.5s ease; font-size:120px; font-weight:bold; color:#4da3ff; }
-.letter:first-child { opacity:1; transform:scale(4); transition: transform 1s ease, opacity 0.5s ease; }
+* { box-sizing: border-box; }
+body, html {
+  margin: 0; padding: 0; width: 100%; height: 100%;
+  overflow: hidden; font-family: sans-serif;
+  background: #1e1e1e; color: white;
+}
 
-#toolbar { background:#2b2b2b; padding:10px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; }
-#leftTools { display:flex; gap:10px; flex-wrap:wrap; }
-#brand { font-weight:bold; font-size:20px; color:#4da3ff; }
+/* ── Splash ── */
+#splash {
+  position: fixed; inset: 0;
+  background: #1e1e1e;
+  display: flex; justify-content: center; align-items: center;
+  z-index: 9999; transition: opacity 0.8s;
+}
+.letter {
+  opacity: 0; display: inline-block;
+  transform: scale(2);
+  transition: transform 0.5s ease, opacity 0.5s ease;
+  font-size: 100px; font-weight: bold; color: #4da3ff;
+}
+.letter.first {
+  opacity: 1; transform: scale(4);
+  transition: transform 1s ease;
+}
 
-#desktop { position:relative; height:90vh; width:100%; overflow:hidden; }
-.window { position:absolute; width:80%; height:70%; max-width:1200px; max-height:900px; min-width:600px; min-height:400px; background:#2d2d2d; border:1px solid #555; display:flex; flex-direction:column; }
-.titlebar { background:#3c3c3c; padding:10px; display:flex; justify-content:space-between; cursor:move; gap:5px; }
-.frame { flex:1; border:none; width:100%; height:100%; overflow:hidden; }
-.topfullscreen { box-shadow:0 0 20px #4da3ff; z-index:99999 !important; }
-.iframe-full { box-shadow:0 0 20px #4da3ff; }
+/* ── IDE shell ── */
+#ide { display: none; width: 100%; height: 100%; flex-direction: column; }
+#ide.visible { display: flex; }
 
-/* VM UI */
+#toolbar {
+  background: #2b2b2b; padding: 8px 12px;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 6px; flex-shrink: 0;
+}
+#leftTools { display: flex; gap: 6px; flex-wrap: wrap; }
+#leftTools button, #toolbar button {
+  padding: 5px 12px; background: #3a3a3a; color: #eee;
+  border: 1px solid #555; border-radius: 4px; cursor: pointer; font-size: 12px;
+}
+#leftTools button:hover, #toolbar button:hover {
+  background: #4da3ff22; border-color: #4da3ff;
+}
+#brand { font-weight: bold; font-size: 18px; color: #4da3ff; }
+
+#desktop { position: relative; flex: 1; overflow: hidden; }
+
+/* ── Windows ── */
+.win {
+  position: absolute; width: 80%; height: 72%;
+  min-width: 400px; min-height: 300px;
+  background: #2d2d2d; border: 1px solid #555;
+  display: flex; flex-direction: column;
+  box-shadow: 0 4px 24px rgba(0,0,0,.6);
+}
+.win-bar {
+  background: #3c3c3c; padding: 7px 10px;
+  display: flex; align-items: center; gap: 6px;
+  cursor: move; user-select: none; flex-shrink: 0;
+}
+.win-title { flex: 1; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.win-bar button {
+  padding: 3px 9px; font-size: 11px; background: #2a2a2a;
+  color: #ccc; border: 1px solid #555; border-radius: 3px; cursor: pointer;
+}
+.win-bar button:hover { background: #4da3ff33; border-color: #4da3ff; }
+.win-body { flex: 1; min-height: 0; overflow: hidden; position: relative; }
+
+/* ── VM UI ── */
 .vm-menu {
-  display:flex; flex-direction:column; justify-content:center; align-items:center;
-  height:100%; color:#ccc; gap:16px;
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 14px;
+  height: 100%; padding: 20px; overflow-y: auto; text-align: center;
 }
-.vm-menu h2 { margin:0 0 8px 0; color:#4da3ff; }
+.vm-menu h2 { margin: 0; color: #4da3ff; }
 .vm-menu button {
-  padding:10px 24px; font-size:15px; background:#3a3a3a; color:#eee;
-  border:1px solid #555; border-radius:6px; cursor:pointer; min-width:220px;
-  transition: background 0.2s, border-color 0.2s;
+  padding: 10px 24px; font-size: 14px; background: #3a3a3a; color: #eee;
+  border: 1px solid #555; border-radius: 6px; cursor: pointer; min-width: 240px;
 }
-.vm-menu button:hover { background:#4da3ff22; border-color:#4da3ff; }
-.ram-info { font-size:12px; color:#888; margin-top:-8px; }
+.vm-menu button:hover { background: #4da3ff22; border-color: #4da3ff; }
+.vm-menu button:disabled { opacity: .4; cursor: default; }
 
-.vm-progress {
-  display:flex; flex-direction:column; align-items:center; justify-content:center;
-  height:100%; gap:14px; color:#ccc;
+.vm-boot {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 12px; height: 100%;
 }
-.progress-bar-wrap { width:320px; background:#333; border-radius:8px; overflow:hidden; height:12px; }
-.progress-bar { height:100%; background:#4da3ff; width:0%; transition:width 0.3s; }
-.vm-status { font-size:13px; color:#aaa; }
+.pbar-wrap { width: 300px; background: #333; border-radius: 8px; overflow: hidden; height: 10px; }
+.pbar { height: 100%; background: #4da3ff; width: 0%; transition: width .4s; }
+.pstatus { font-size: 12px; color: #aaa; }
+
+.compat-warn {
+  flex-shrink: 0; padding: 8px 14px; font-size: 12px; line-height: 1.6;
+  display: flex; gap: 10px; align-items: flex-start;
+}
+.compat-ok {
+  flex-shrink: 0; padding: 5px 10px; font-size: 11px; color: #8f8;
+  background: #0a2a0a; border-bottom: 1px solid #2a6a2a;
+}
+
+.dropzone {
+  width: 90%; max-width: 380px; border: 2px dashed #555; border-radius: 10px;
+  padding: 20px; cursor: pointer; transition: border-color .2s, background .2s;
+  font-size: 13px; color: #aaa; line-height: 1.8;
+}
+.dropzone:hover, .dropzone.over { border-color: #4da3ff; background: #4da3ff11; }
+.dropzone b { color: #eee; }
+.dropzone .flist { margin-top: 8px; font-size: 11px; color: #4da3ff; min-height: 16px; }
+
+.chk-row {
+  display: flex; align-items: flex-start; gap: 10px;
+  font-size: 13px; color: #aaa; max-width: 380px; text-align: left;
+}
+.chk-row input { width: 15px; height: 15px; cursor: pointer; accent-color: #4da3ff; flex-shrink: 0; margin-top: 2px; }
+.chk-row label { cursor: pointer; }
+.chk-row label b { color: #eee; display: block; }
+.chk-row label small { color: #666; font-size: 11px; }
+
+.btn-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
 </style>
-
-<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
 </head>
 <body>
 
+<!-- Splash -->
 <div id="splash">
-  <span class="letter">R</span>
-  <span class="letter">u</span>
-  <span class="letter">n</span>
-  <span class="letter">t</span>
-  <span class="letter">i</span>
-  <span class="letter">m</span>
-  <span class="letter">e</span>
-  <span class="letter">e</span>
-  <span class="letter">e</span>
-  <span class="letter">e</span>
-  <span class="letter">I</span>
-  <span class="letter">D</span>
-  <span class="letter">E</span>
+  <div id="splashLetters"></div>
 </div>
 
-<div id="ide" style="display:none;">
+<!-- IDE -->
+<div id="ide">
   <div id="toolbar">
     <div id="leftTools">
-      <button id="uploadSingleFile">Upload Single HTML/JS/CSS File</button>
-      <button id="uploadMultipleFiles">Upload Multiple HTML/JS/CSS Files</button>
-      <button id="uploadSingleApp">Upload Single App File</button>
-      <button id="uploadMultipleApps">Upload Multiple App Files</button>
-      <button id="openLinuxVM">Open Linux VM</button>
-      <button id="editGlobal">Edit Code</button>
-      <button id="previewGlobal">Preview App</button>
+      <button id="btnFile">Upload HTML/JS/CSS</button>
+      <button id="btnFiles">Upload Multiple</button>
+      <button id="btnApp">Upload App</button>
+      <button id="btnApps">Upload Multiple Apps</button>
+      <button id="btnVM">🐧 Linux VM</button>
+      <button id="btnEdit">✏️ Edit Code</button>
+      <button id="btnPreview">▶ Preview</button>
     </div>
     <div id="brand">RuntimeeeeIDE</div>
   </div>
@@ -80,415 +148,570 @@ body, html { margin:0; padding:0; width:100%; height:100%; overflow:hidden; font
 </div>
 
 <script>
-// ── Splash animation ──────────────────────────────────────────────
-const letters = document.querySelectorAll('.letter');
-letters.forEach((letter, index) => {
-  if (index === 0) return;
-  setTimeout(() => { letter.style.opacity = 1; letter.style.transform = 'scale(1)'; }, index * 200 + 600);
-});
-setTimeout(() => letters[0].style.transform = 'scale(1)', 600);
-setTimeout(() => {
-  document.getElementById('splash').style.opacity = 0;
-  setTimeout(() => {
-    document.getElementById('splash').style.display = 'none';
-    document.getElementById('ide').style.display = 'block';
+(function () {
+'use strict';
+
+// ── Constants ─────────────────────────────────────────────────────
+var VM_BASE = 'https://runtimeeee.github.io/ide/vm/';
+var LINUX_RE = /\.(deb|rpm|AppImage|sh|bin|tar|tar\.gz|tar\.bz2|tar\.xz|snap|run|pkg)$/i;
+var desktop  = document.getElementById('desktop');
+var winCount = 0;
+var curCode  = '';
+var curFrame = null;
+
+// ── Splash ────────────────────────────────────────────────────────
+var WORD = 'RuntimeeeeIDE';
+var container = document.getElementById('splashLetters');
+var letters = [];
+for (var i = 0; i < WORD.length; i++) {
+  var s = document.createElement('span');
+  s.textContent = WORD[i];
+  s.style.cssText = 'display:inline-block;font-size:80px;font-weight:bold;color:#4da3ff;'
+    + 'opacity:0;transform:scale(2);transition:transform 0.5s ease,opacity 0.5s ease;';
+  container.appendChild(s);
+  letters.push(s);
+}
+// First letter
+letters[0].style.opacity = '1';
+letters[0].style.transform = 'scale(4)';
+letters[0].style.transition = 'transform 1s ease';
+setTimeout(function(){ letters[0].style.transform = 'scale(1)'; }, 100);
+
+// Rest of letters cascade in
+for (var j = 1; j < letters.length; j++) {
+  (function(idx) {
+    setTimeout(function() {
+      letters[idx].style.opacity = '1';
+      letters[idx].style.transform = 'scale(1)';
+    }, idx * 180 + 700);
+  })(j);
+}
+
+// Hide splash, show IDE
+var splashDuration = letters.length * 180 + 1400;
+setTimeout(function() {
+  var sp = document.getElementById('splash');
+  sp.style.opacity = '0';
+  setTimeout(function() {
+    sp.style.display = 'none';
+    document.getElementById('ide').style.display = 'flex';
   }, 800);
-}, letters.length * 200 + 1200);
+}, splashDuration);
 
-// ── RAM detection ─────────────────────────────────────────────────
-function getVMRamMB() {
-  // navigator.deviceMemory gives GB (e.g. 4, 8, 16). It's available in Chrome/Edge.
-  // We use at most 50% of detected RAM so the host stays responsive.
-  const deviceGB = navigator.deviceMemory || null;
-  let ramMB;
+// ── RAM ───────────────────────────────────────────────────────────
+function getRAM() {
+  var gb = navigator.deviceMemory;
+  if (gb) return Math.min(1024, Math.max(128, Math.floor(gb * 512)));
+  try { return Math.min(512, Math.max(128, Math.floor(performance.memory.jsHeapSizeLimit / 1048576 * 0.3))); }
+  catch(e) { return 256; }
+}
+function ramLabel(mb) { return mb >= 1024 ? (mb/1024).toFixed(1)+' GB' : mb+' MB'; }
 
-  if (deviceGB) {
-    // Use up to 50% of device RAM, clamped between 128 MB and 1024 MB
-    const halfMB = Math.floor((deviceGB * 1024) * 0.5);
-    ramMB = Math.min(1024, Math.max(128, halfMB));
-  } else {
-    // Fallback: try a rough heuristic via performance.memory (Chrome only)
-    try {
-      const totalJSHeap = window.performance.memory.jsHeapSizeLimit; // bytes
-      const totalMB = Math.floor(totalJSHeap / (1024 * 1024));
-      ramMB = Math.min(512, Math.max(128, Math.floor(totalMB * 0.3)));
-    } catch {
-      ramMB = 128; // safe conservative default
-    }
-  }
-  return ramMB;
+// ── Browser detection ─────────────────────────────────────────────
+function detectBrowser() {
+  var ua = navigator.userAgent;
+  var isIOS    = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  var isSafari = /Safari\//.test(ua) && !/Chrome\//.test(ua) && !/Chromium\//.test(ua);
+  var isCrOS   = /CrOS/.test(ua);
+  var isChrome = /Chrome\//.test(ua) && !/Edg\//.test(ua) && !/OPR\//.test(ua);
+  var isFF     = /Firefox\//.test(ua);
+  var isEdge   = /Edg\//.test(ua);
+  var hasWasm  = !!window.WebAssembly;
+  var hasSAB   = !!window.SharedArrayBuffer;
+  return { isIOS: isIOS, isSafari: isSafari, isCrOS: isCrOS, isChrome: isChrome,
+           isFF: isFF, isEdge: isEdge, hasWasm: hasWasm, hasSAB: hasSAB };
 }
 
-function ramLabel(mb) {
-  if (mb >= 1024) return (mb / 1024).toFixed(1) + ' GB';
-  return mb + ' MB';
-}
+// ── Window factory ────────────────────────────────────────────────
+function makeWin(title) {
+  var off = (winCount % 8) * 28;
+  winCount++;
 
-// ── Core IDE state ────────────────────────────────────────────────
-const desktop = document.getElementById("desktop");
-let currentCode = "";
-let currentContainer = null;
+  var win = document.createElement('div');
+  win.className = 'win';
+  win.style.top  = (50 + off) + 'px';
+  win.style.left = (50 + off) + 'px';
+  win.style.zIndex = 10 + winCount;
 
-document.getElementById("editGlobal").onclick = () => { if (currentContainer) openEditor(currentContainer, currentCode); };
-document.getElementById("previewGlobal").onclick = () => { if (currentContainer) runApp(currentContainer, currentCode); };
+  var bar   = document.createElement('div'); bar.className = 'win-bar';
+  var lbl   = document.createElement('span'); lbl.className = 'win-title'; lbl.textContent = title;
+  var btnFS = document.createElement('button'); btnFS.textContent = 'Fullscreen';
+  var btnMX = document.createElement('button'); btnMX.textContent = 'Max';
+  var btnCL = document.createElement('button'); btnCL.textContent = '✕'; btnCL.style.color = '#f66';
 
-function drag(el, header) {
-  let x = 0, y = 0, dx = 0, dy = 0;
-  header.onmousedown = e => {
-    dx = e.clientX; dy = e.clientY;
-    document.onmousemove = move;
-    document.onmouseup = stop;
+  bar.appendChild(lbl); bar.appendChild(btnFS); bar.appendChild(btnMX); bar.appendChild(btnCL);
+
+  var body = document.createElement('div'); body.className = 'win-body';
+  win.appendChild(bar); win.appendChild(body);
+  desktop.appendChild(win);
+
+  // Focus on click
+  win.addEventListener('mousedown', function() { win.style.zIndex = 10 + (++winCount); });
+
+  // Drag
+  var ox = 0, oy = 0;
+  bar.addEventListener('mousedown', function(e) {
+    if (e.target.tagName === 'BUTTON') return;
+    ox = e.clientX - win.offsetLeft; oy = e.clientY - win.offsetTop;
+    function mm(e) { win.style.left = (e.clientX-ox)+'px'; win.style.top = (e.clientY-oy)+'px'; }
+    function mu() { document.removeEventListener('mousemove',mm); document.removeEventListener('mouseup',mu); }
+    document.addEventListener('mousemove', mm);
+    document.addEventListener('mouseup', mu);
+  });
+
+  btnFS.onclick = function() {
+    win.style.cssText += ';position:absolute;top:2%;left:2%;width:96%;height:94%;';
   };
-  function move(e) {
-    x = dx - e.clientX; y = dy - e.clientY;
-    dx = e.clientX; dy = e.clientY;
-    el.style.top = (el.offsetTop - y) + "px";
-    el.style.left = (el.offsetLeft - x) + "px";
-  }
-  function stop() { document.onmousemove = null; }
+  var maxed = false, savedPos = {};
+  btnMX.onclick = function() {
+    if (!maxed) {
+      savedPos = { pos: win.style.position, top: win.style.top, left: win.style.left, w: win.style.width, h: win.style.height };
+      win.style.position = 'fixed'; win.style.top = '0'; win.style.left = '0';
+      win.style.width = '100%'; win.style.height = '100%'; win.style.zIndex = '99999';
+      maxed = true;
+    } else {
+      win.style.position = savedPos.pos||'absolute'; win.style.top = savedPos.top; win.style.left = savedPos.left;
+      win.style.width = savedPos.w||'80%'; win.style.height = savedPos.h||'72%'; win.style.zIndex = 10+winCount;
+      maxed = false;
+    }
+  };
+  btnCL.onclick = function() { win.remove(); };
+
+  return { win: win, body: body, lbl: lbl };
 }
 
-function runApp(container, code) {
-  container.innerHTML = "";
-  let frame = document.createElement("iframe");
-  frame.style.width = "100%"; frame.style.height = "100%";
-  frame.srcdoc = code;
-  container.appendChild(frame);
+// ── Web preview ───────────────────────────────────────────────────
+function runApp(body, code) {
+  body.innerHTML = '';
+  var ifr = document.createElement('iframe');
+  ifr.style.cssText = 'width:100%;height:100%;border:none;';
+  ifr.srcdoc = code;
+  body.appendChild(ifr);
 }
 
-function openEditor(container, code) {
-  container.innerHTML = `<div id="editor" style="width:100%;height:100%;"></div>`;
+function openEditor(body, code) {
+  body.innerHTML = '<div id="_monaco" style="width:100%;height:100%;"></div>';
   require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' } });
-  require(['vs/editor/editor.main'], function () {
-    window.editor = monaco.editor.create(document.getElementById('editor'), {
-      value: code,
-      language: "html",
-      theme: "vs-dark",
-      automaticLayout: true
+  require(['vs/editor/editor.main'], function() {
+    window._ed = monaco.editor.create(document.getElementById('_monaco'), {
+      value: code, language: 'html', theme: 'vs-dark', automaticLayout: true
     });
   });
-  let save = document.createElement("button");
-  save.textContent = "Save + Run";
-  save.style.cssText = "position:absolute;top:60px;right:20px;z-index:10;padding:6px 14px;";
-  container.appendChild(save);
-  save.onclick = () => {
-    currentCode = editor.getValue();
-    runApp(container, currentCode);
-  };
+  var btn = document.createElement('button');
+  btn.textContent = '💾 Save + Run';
+  btn.style.cssText = 'position:absolute;top:8px;right:8px;z-index:100;padding:6px 14px;'
+    + 'background:#4da3ff;color:#000;border:none;border-radius:4px;cursor:pointer;font-weight:bold;';
+  body.appendChild(btn);
+  btn.onclick = function() { curCode = window._ed.getValue(); runApp(body, curCode); };
 }
 
-function createWindow(fileName, code, isApp = false) {
-  let win = document.createElement("div");
-  win.className = "window";
-  win.style.top = `${desktop.offsetHeight * 0.1}px`;
-  win.style.left = `${desktop.offsetWidth * 0.1}px`;
-
-  let title = document.createElement("div"); title.className = "titlebar";
-  let label = document.createElement("span"); label.textContent = fileName;
-
-  let fsButton = document.createElement("button"); fsButton.textContent = "Fullscreen (IDE)";
-  let fsTopButton = document.createElement("button"); fsTopButton.textContent = "Full Fullscreen";
-  let fsIframeButton = document.createElement("button"); fsIframeButton.textContent = "Iframe Fullscreen";
-
-  title.appendChild(label); title.appendChild(fsButton); title.appendChild(fsTopButton); title.appendChild(fsIframeButton);
-
-  let container = document.createElement("div"); container.className = "frame";
-  win.appendChild(title); win.appendChild(container);
-  desktop.appendChild(win);
-  drag(win, title);
-
-  if (!isApp || fileName.endsWith(".html") || fileName.endsWith(".js")) {
-    runApp(container, code);
-  } else {
-    container.innerHTML = `<div style="padding:10px;color:#ccc;">
-      <p>App cannot run natively.<br>Use Linux VM for Linux apps.</p></div>`;
-  }
-
-  fsButton.onclick = () => {
-    win.style.position = "absolute";
-    win.style.top = `${desktop.offsetHeight * 0.05}px`;
-    win.style.left = `${desktop.offsetWidth * 0.05}px`;
-    win.style.width = `${desktop.offsetWidth * 0.9}px`;
-    win.style.height = `${desktop.offsetHeight * 0.85}px`;
-  };
-  fsTopButton.onclick = () => {
-    if (!win.classList.contains("topfullscreen")) {
-      win.classList.add("topfullscreen");
-      win.style.position = "fixed"; win.style.top = 0; win.style.left = 0;
-      win.style.width = "100%"; win.style.height = "100%";
-    } else {
-      win.classList.remove("topfullscreen");
-      win.style.width = "80%"; win.style.height = "70%";
-      win.style.top = `${desktop.offsetHeight * 0.1}px`;
-      win.style.left = `${desktop.offsetWidth * 0.1}px`;
-      win.style.position = "absolute";
-    }
-  };
-  fsIframeButton.onclick = () => {
-    let frame = container.querySelector('iframe');
-    if (!frame) return;
-    if (!frame.classList.contains('iframe-full')) {
-      frame.classList.add('iframe-full');
-      frame.style.cssText = "position:absolute;top:0;left:0;width:100%;height:100%;z-index:9999;";
-    } else {
-      frame.classList.remove('iframe-full');
-      frame.style.cssText = "width:100%;height:100%;";
-    }
-  };
+function openWebWin(name, code) {
+  var w = makeWin(name);
+  curCode = code; curFrame = w.body;
+  runApp(w.body, code);
 }
 
-const LINUX_EXT = /\.(deb|rpm|AppImage|sh|bin|tar|tar\.gz|tar\.bz2|tar\.xz)$/i;
-
-function handleUpload(single, app = false) {
-  const input = document.createElement("input");
-  input.type = "file"; input.multiple = !single;
-  if (app) input.accept = ".html,.js,.wasm,.exe,.deb,.AppImage,.rpm,.sh,.bin,.tar,.zip";
-  else input.accept = ".html,.js,.css";
-
-  input.onchange = e => {
-    const files = Array.from(e.target.files);
-    if (!files.length) return;
-
-    // Separate linux binaries from web files
-    const linuxFiles = files.filter(f => LINUX_EXT.test(f.name));
-    const webFiles   = files.filter(f => !LINUX_EXT.test(f.name));
-
-    // Auto-route linux files straight into a VM window with them pre-loaded
-    if (linuxFiles.length > 0) {
-      const toast = showToast(`🐧 Detected ${linuxFiles.length} Linux file(s) — opening VM…`);
-      Promise.all(linuxFiles.map(f =>
-        f.arrayBuffer().then(buf => ({ name: f.name, data: new Uint8Array(buf) }))
-      )).then(loaded => {
-        const fsFiles = {};
-        loaded.forEach(f => { fsFiles[f.name] = f.data; });
-        openLinuxVMWithFiles(fsFiles); // boot straight into VM with files
-        toast.remove();
-      }).catch(err => {
-        toast.remove();
-        showToast(`⚠️ Failed to load Linux files: ${err.message}`, true);
-      });
-    }
-
-    // Handle web files normally
-    webFiles.forEach(file => {
-      file.text().then(code => createWindow(file.name, code, app));
-    });
-  };
-  input.click();
-}
-
-function showToast(msg, isError = false) {
-  const t = document.createElement("div");
+// ── Toast ─────────────────────────────────────────────────────────
+function toast(msg, isErr) {
+  var t = document.createElement('div');
   t.textContent = msg;
-  t.style.cssText = `position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
-    background:${isError ? '#7a2020' : '#1a3a5c'};color:#eee;padding:10px 22px;
-    border-radius:8px;font-size:14px;z-index:999999;border:1px solid ${isError ? '#f66' : '#4da3ff'};
-    box-shadow:0 4px 20px #0008;pointer-events:none;`;
+  t.style.cssText = 'position:fixed;bottom:18px;left:50%;transform:translateX(-50%);'
+    + 'background:' + (isErr?'#6a1a1a':'#1a3050') + ';color:#eee;padding:9px 18px;'
+    + 'border-radius:7px;font-size:13px;z-index:999999;'
+    + 'border:1px solid ' + (isErr?'#f66':'#4da3ff') + ';pointer-events:none;';
   document.body.appendChild(t);
-  if (isError) setTimeout(() => t.remove(), 4000);
+  if (isErr) setTimeout(function(){ t.remove(); }, 4000);
   return t;
 }
 
-document.getElementById("uploadSingleFile").onclick = () => handleUpload(true, false);
-document.getElementById("uploadMultipleFiles").onclick = () => handleUpload(false, false);
-document.getElementById("uploadSingleApp").onclick = () => handleUpload(true, true);
-document.getElementById("uploadMultipleApps").onclick = () => handleUpload(false, true);
+// ── Upload handler ────────────────────────────────────────────────
+function handleUpload(single, app) {
+  var inp = document.createElement('input');
+  inp.type = 'file'; inp.multiple = !single;
+  inp.accept = app
+    ? '.html,.js,.wasm,.exe,.deb,.AppImage,.rpm,.sh,.bin,.tar,.zip,.snap,.run'
+    : '.html,.js,.css';
+  inp.onchange = function(e) {
+    var files = Array.from(e.target.files);
+    var linuxFiles = files.filter(function(f){ return LINUX_RE.test(f.name); });
+    var webFiles   = files.filter(function(f){ return !LINUX_RE.test(f.name); });
 
-// ── Linux VM ──────────────────────────────────────────────────────
-// Opens a VM window. If fsFiles provided, skips the menu and boots immediately.
-function openLinuxVMWithFiles(preloadedFiles) {
-  const vmRamMB = getVMRamMB();
-  const vmRamBytes = vmRamMB * 1024 * 1024;
-  _spawnVMWindow(vmRamMB, vmRamBytes, preloadedFiles);
+    if (linuxFiles.length) {
+      var t = toast('🐧 Linux files detected — opening VM…');
+      Promise.all(linuxFiles.map(function(f){
+        return f.arrayBuffer().then(function(b){ return { name: f.name, data: new Uint8Array(b) }; });
+      })).then(function(loaded) {
+        t.remove();
+        var fs = {}; loaded.forEach(function(f){ fs[f.name] = f.data; });
+        spawnVM(fs);
+      }).catch(function(err){ t.remove(); toast('⚠️ '+err.message, true); });
+    }
+
+    webFiles.forEach(function(f){ f.text().then(function(code){ openWebWin(f.name, code); }); });
+  };
+  inp.click();
 }
 
-document.getElementById("openLinuxVM").onclick = () => {
-  const vmRamMB = getVMRamMB();
-  const vmRamBytes = vmRamMB * 1024 * 1024;
-  _spawnVMWindow(vmRamMB, vmRamBytes, null);
-};
+// ── Button wiring ─────────────────────────────────────────────────
+function bindButtons() {
+  document.getElementById('btnFile').onclick    = function(){ handleUpload(true,  false); };
+  document.getElementById('btnFiles').onclick   = function(){ handleUpload(false, false); };
+  document.getElementById('btnApp').onclick     = function(){ handleUpload(true,  true);  };
+  document.getElementById('btnApps').onclick    = function(){ handleUpload(false, true);  };
+  document.getElementById('btnVM').onclick      = function(){ spawnVM(null); };
+  document.getElementById('btnEdit').onclick    = function(){ if(curFrame) openEditor(curFrame, curCode); };
+  document.getElementById('btnPreview').onclick = function(){ if(curFrame) runApp(curFrame, curCode); };
+}
+document.addEventListener('DOMContentLoaded', bindButtons);
+setTimeout(bindButtons, splashDuration + 900); // also bind after splash
 
-function _spawnVMWindow(vmRamMB, vmRamBytes, autoFiles) {
+// ── Linux VM ─────────────────────────────────────────────────────
+function spawnVM(autoFiles) {
+  var ramMB    = getRAM();
+  var ramBytes = ramMB * 1024 * 1024;
+  var br       = detectBrowser();
+  var names    = autoFiles ? Object.keys(autoFiles).join(', ') : '';
+  var w        = makeWin('🐧 Linux VM' + (names ? ' — '+names : '') + '  ['+ramLabel(ramMB)+']');
+  var body     = w.body;
+  var barTimer = null;
 
-  let vmWin = document.createElement("div");
-  vmWin.className = "window";
-  vmWin.style.top = `${desktop.offsetHeight * 0.1}px`;
-  vmWin.style.left = `${desktop.offsetWidth * 0.1}px`;
+  // ── Helpers ──
+  function getBar()    { return body.querySelector('.pbar'); }
+  function getStatus() { return body.querySelector('.pstatus'); }
+  function setBar(n)   { clearInterval(barTimer); var b=getBar(); if(b) b.style.width=n+'%'; }
+  function setStatus(m){ var s=getStatus(); if(s) s.textContent=m; }
 
-  let title = document.createElement("div");
-  title.className = "titlebar";
-  const fileNames = autoFiles ? Object.keys(autoFiles).join(", ") : "";
-  title.innerHTML = `<span>Linux VM${fileNames ? " \u2014 " + fileNames : ""}</span><span style="font-size:12px;color:#aaa;">RAM: ${ramLabel(vmRamMB)}</span>`;
-  vmWin.appendChild(title);
-
-  let vmContainer = document.createElement("div");
-  vmContainer.className = "frame";
-  vmWin.appendChild(vmContainer);
-  desktop.appendChild(vmWin);
-  drag(vmWin, title);
-
-  // If files were passed in directly, skip the menu and boot immediately
-  if (autoFiles && Object.keys(autoFiles).length > 0) {
-    const names = Object.keys(autoFiles).join(", ");
-    showLoadingScreen("Loading: " + names);
-    startLinuxVM(autoFiles, vmRamBytes);
-  } else {
-    showVMMenu();
+  // ── Compat banner HTML (built safely — no inline event handlers) ──
+  function makeCompatBanner() {
+    var html = '';
+    if (br.isIOS && br.isSafari) {
+      html = '<div class="compat-warn" style="background:#5a2000;border-bottom:2px solid #f84;color:#fca;">'
+           + '<span style="font-size:20px;">🍎</span>'
+           + '<span><b>iPad / iPhone detected</b><br>'
+           + 'Safari on iOS severely limits WebAssembly JIT. The VM will run very slowly and may not finish booting. '
+           + 'Use a Chromebook or desktop Chrome for best results.</span></div>';
+    } else if (br.isSafari) {
+      html = '<div class="compat-warn" style="background:#4a3000;border-bottom:2px solid #fb4;color:#fda;">'
+           + '<span style="font-size:20px;">⚠️</span>'
+           + '<span><b>Safari detected</b><br>'
+           + 'Safari has limited WebAssembly JIT support. The VM may run slowly. '
+           + 'Chrome or Firefox will perform much better.</span></div>';
+    } else if (!br.hasSAB) {
+      html = '<div class="compat-warn" style="background:#2a2a00;border-bottom:1px solid #aa8;color:#dda;">'
+           + '<span style="font-size:20px;">⚠️</span>'
+           + '<span><b>SharedArrayBuffer unavailable</b><br>'
+           + 'VM performance will be reduced. This is normal on some hosting setups.</span></div>';
+    } else if (br.isCrOS) {
+      html = '<div class="compat-ok">✅ ChromeOS detected — excellent compatibility!</div>';
+    } else if (br.isChrome) {
+      html = '<div class="compat-ok">✅ Chrome detected — full compatibility.</div>';
+    }
+    return html;
   }
 
-  function showVMMenu() {
-    vmContainer.innerHTML = `
-      <div class="vm-menu">
-        <h2>🐧 Linux VM</h2>
-        <p class="ram-info">VM will use ${ramLabel(vmRamMB)} of RAM (auto-detected)</p>
-        <button id="vmUploadFiles">📦 Upload Linux App Files</button>
-        <button id="vmStartNormal">▶ Start VM (no files)</button>
-      </div>
-    `;
+  // ── Menu ──
+  function showMenu() {
+    clearInterval(barTimer);
+    body.innerHTML = '';
+    body.style.cssText = '';
 
-    vmContainer.querySelector("#vmUploadFiles").onclick = () => {
-      const input = document.createElement("input");
-      input.type = "file";
-      input.multiple = true;
-      // Accept all common Linux app formats
-      input.accept = ".deb,.rpm,.AppImage,.sh,.tar,.tar.gz,.tar.bz2,.tar.xz,.zip,.bin";
+    var pendingFiles = {};
 
-      input.onchange = e => {
-        const files = Array.from(e.target.files);
-        if (!files.length) return;
+    var menu = document.createElement('div');
+    menu.className = 'vm-menu';
 
-        showLoadingScreen(`Loading ${files.length} file(s)…`);
+    // Title
+    var h2 = document.createElement('h2'); h2.textContent = '🐧 Linux VM'; menu.appendChild(h2);
 
-        Promise.all(files.map(f =>
-          f.arrayBuffer().then(buf => ({ name: f.name, data: new Uint8Array(buf) }))
-        )).then(loaded => {
-          const fsFiles = {};
-          loaded.forEach(f => { fsFiles[f.name] = f.data; });
-          startLinuxVM(fsFiles, vmRamBytes);
-        }).catch(err => {
-          vmContainer.innerHTML = `<div class="vm-menu"><p style="color:#f66;">Failed to load files: ${err.message}</p><button onclick="">Retry</button></div>`;
-          vmContainer.querySelector("button").onclick = showVMMenu;
-        });
+    // RAM label
+    var rp = document.createElement('p'); rp.style.color = '#777';
+    rp.textContent = 'RAM: '+ramLabel(ramMB)+' (auto-detected)  |  All Linux file types accepted';
+    menu.appendChild(rp);
+
+    // Compat banner
+    var tmp = document.createElement('div'); tmp.innerHTML = makeCompatBanner();
+    if (tmp.firstChild) menu.appendChild(tmp.firstChild);
+
+    // File list display
+    var fileListEl = document.createElement('div');
+    fileListEl.style.cssText = 'font-size:12px;color:#4da3ff;min-height:18px;max-width:380px;word-break:break-all;text-align:center;';
+    menu.appendChild(fileListEl);
+
+    function updateFileList() {
+      var keys = Object.keys(pendingFiles);
+      fileListEl.textContent = keys.length ? ('Loaded: ' + keys.join(', ')) : '';
+      btnStartFiles.disabled = keys.length === 0;
+    }
+
+    function readFiles(files) {
+      if (!files.length) return;
+      fileListEl.textContent = 'Reading files…';
+      Promise.all(files.map(function(f){
+        return f.arrayBuffer().then(function(b){ return {name:f.name, data:new Uint8Array(b)}; });
+      })).then(function(loaded){
+        loaded.forEach(function(f){ pendingFiles[f.name] = f.data; });
+        updateFileList();
+      }).catch(function(err){
+        fileListEl.textContent = '⚠️ ' + err.message;
+      });
+    }
+
+    // Visible native file input — no JS trickery, browser handles it directly
+    var fileInputWrap = document.createElement('div');
+    fileInputWrap.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:8px;width:90%;max-width:380px;';
+
+    var fileLabel = document.createElement('div');
+    fileLabel.style.cssText = 'font-size:13px;color:#aaa;';
+    fileLabel.textContent = '📦 Select Linux app files to load into the VM:';
+
+    var inp = document.createElement('input');
+    inp.type = 'file';
+    inp.multiple = true;
+    
+    inp.style.cssText = 'width:100%;padding:10px;background:#3a3a3a;color:#eee;'
+      + 'border:1px solid #555;border-radius:6px;cursor:pointer;font-size:13px;';
+    inp.onchange = function(e){ readFiles(Array.from(e.target.files)); };
+
+    var dzNote = document.createElement('div');
+    dzNote.style.cssText = 'font-size:11px;color:#555;';
+    dzNote.textContent = 'All file types allowed — .deb .rpm .AppImage .sh .bin .tar .zip and more';
+
+    fileInputWrap.appendChild(fileLabel);
+    fileInputWrap.appendChild(inp);
+    fileInputWrap.appendChild(dzNote);
+    menu.appendChild(fileInputWrap);
+    menu.appendChild(fileListEl);
+
+    // Compress files checkbox
+    var chkFiles = document.createElement('div'); chkFiles.className = 'chk-row';
+    chkFiles.innerHTML = '<input type="checkbox" id="_chkCF">'
+      + '<label for="_chkCF"><b>Compress uploaded files</b>'
+      + '<small>Gzips files before loading — saves RAM, slightly slower</small></label>';
+    menu.appendChild(chkFiles);
+
+    // Compress VM checkbox
+    var chkVM = document.createElement('div'); chkVM.className = 'chk-row';
+    chkVM.innerHTML = '<input type="checkbox" id="_chkCV">'
+      + '<label for="_chkCV"><b>Compress VM image</b>'
+      + '<small>Fetches &amp; gzips the ISO before boot — saves RAM, takes longer</small></label>';
+    menu.appendChild(chkVM);
+
+    // Buttons
+    var btnRow = document.createElement('div'); btnRow.className = 'btn-row';
+    var btnStartFiles = document.createElement('button');
+    btnStartFiles.textContent = '▶ Start VM with Files';
+    btnStartFiles.style.cssText = 'background:#4da3ff22;border-color:#4da3ff;color:#4da3ff;';
+    btnStartFiles.disabled = true;
+
+    var btnStartClean = document.createElement('button');
+    btnStartClean.textContent = '▶ Start VM (no files)';
+
+    btnRow.appendChild(btnStartFiles); btnRow.appendChild(btnStartClean);
+    menu.appendChild(btnRow);
+    body.appendChild(menu);
+
+    updateFileList();
+
+    async function doStart(fsFiles) {
+      var compressVM = menu.querySelector('#_chkCV').checked;
+      var compressFiles = menu.querySelector('#_chkCF').checked;
+
+      // Compress uploaded files if requested
+      if (compressFiles && Object.keys(fsFiles).length && window.CompressionStream) {
+        showBoot('Compressing uploaded files…');
+        fsFiles = await compressObjects(fsFiles);
+      }
+
+      // Compress ISO if requested
+      var isoUrl = null;
+      if (compressVM && window.CompressionStream) {
+        showBoot('Fetching & compressing VM image…');
+        setStatus('This may take a moment…');
+        try {
+          isoUrl = await compressURL(VM_BASE + 'linux.iso');
+        } catch(err) {
+          showBoot('Compression failed: ' + err.message + ' — booting without compression');
+          await new Promise(function(r){ setTimeout(r, 2000); });
+        }
+      }
+
+      showBoot('Booting Linux…');
+      loadAndBoot(fsFiles, isoUrl);
+    }
+
+    btnStartFiles.onclick = function(){ doStart(pendingFiles); };
+    btnStartClean.onclick = function(){ doStart({}); };
+  }
+
+  // ── Boot screen ──
+  function showBoot(msg) {
+    clearInterval(barTimer);
+    body.innerHTML = '';
+    body.style.cssText = '';
+    var d = document.createElement('div'); d.className = 'vm-boot';
+    d.innerHTML = '<div style="font-size:15px;color:#4da3ff;">🐧 '+msg+'</div>'
+      + '<div class="pbar-wrap"><div class="pbar"></div></div>'
+      + '<div class="pstatus">Please wait…</div>'
+      + '<div style="font-size:11px;color:#555;">'+ramLabel(ramMB)+' RAM allocated</div>';
+    body.appendChild(d);
+    var pct = 0;
+    barTimer = setInterval(function(){
+      pct = Math.min(pct + Math.random()*5+1, 78);
+      var b = getBar(); if(b) b.style.width=pct+'%'; else clearInterval(barTimer);
+    }, 600);
+  }
+
+  // ── Error screen ──
+  function showError(title, detail) {
+    clearInterval(barTimer);
+    body.innerHTML = '';
+    body.style.cssText = '';
+    var d = document.createElement('div'); d.className = 'vm-menu';
+    var p = document.createElement('p'); p.style.color='#f66'; p.textContent = title; d.appendChild(p);
+    if (detail) {
+      var pre = document.createElement('pre'); pre.textContent = detail; d.appendChild(pre);
+    }
+    var btn = document.createElement('button'); btn.textContent = '↩ Back';
+    btn.onclick = showMenu; d.appendChild(btn);
+    body.appendChild(d);
+  }
+
+  // ── Compression helpers ──
+  async function compressURL(url) {
+    var resp = await fetch(url);
+    if (!resp.ok) throw new Error('HTTP '+resp.status+' fetching '+url);
+    var buf = await resp.arrayBuffer();
+    return bufToBlob(new Uint8Array(buf));
+  }
+
+  async function compressObjects(fsFiles) {
+    var out = {};
+    for (var name in fsFiles) {
+      try { out[name+'.gz'] = await compressBytes(fsFiles[name]); }
+      catch(e) { out[name] = fsFiles[name]; }
+    }
+    return out;
+  }
+
+  async function compressBytes(data) {
+    var cs = new CompressionStream('gzip');
+    var writer = cs.writable.getWriter();
+    writer.write(data); writer.close();
+    var chunks = [], reader = cs.readable.getReader();
+    while (true) { var r = await reader.read(); if (r.done) break; chunks.push(r.value); }
+    var total = chunks.reduce(function(a,c){ return a+c.length; }, 0);
+    var out = new Uint8Array(total), off = 0;
+    chunks.forEach(function(c){ out.set(c, off); off+=c.length; });
+    return out;
+  }
+
+  async function bufToBlob(data) {
+    var compressed = await compressBytes(data);
+    var blob = new Blob([compressed], { type: 'application/octet-stream' });
+    return URL.createObjectURL(blob);
+  }
+
+  // ── Load libv86 then boot ──
+  function loadAndBoot(fsFiles, isoUrl) {
+    if (typeof window.V86 === 'function') { bootVM(fsFiles, isoUrl); return; }
+    setStatus('Loading libv86.js…');
+    var s = document.createElement('script');
+    s.src = VM_BASE + 'libv86.js';
+    s.onload = function() { setBar(60); setStatus('libv86 ready…'); setTimeout(function(){ bootVM(fsFiles, isoUrl); }, 80); };
+    s.onerror = function() { showError('Failed to load libv86.js', 'URL: '+VM_BASE+'libv86.js\n\nCheck that libv86.js exists in the vm/ folder of your repo.'); };
+    document.head.appendChild(s);
+  }
+
+  // ── Boot the VM ──
+  function bootVM(fsFiles, isoUrl) {
+    if (typeof window.V86 !== 'function') {
+      showError('window.V86 is not a function', 'libv86.js loaded but did not export V86. Check the browser console (F12).'); return;
+    }
+    if (!window.WebAssembly) {
+      showError('WebAssembly not supported', 'Your browser does not support WebAssembly.\nPlease use Chrome, Firefox, or Edge.'); return;
+    }
+
+    setStatus('Building screen…'); setBar(80);
+
+    // Build the screen container v86 expects
+    body.innerHTML = '';
+    body.style.background = '#000';
+    body.style.display = 'flex';
+    body.style.flexDirection = 'column';
+
+    // Compat warning banner
+    var tmp = document.createElement('div'); tmp.innerHTML = makeCompatBanner();
+    if (tmp.firstChild) body.appendChild(tmp.firstChild);
+
+    var wrap = document.createElement('div');
+    wrap.style.cssText = 'flex:1;min-height:0;position:relative;overflow:hidden;';
+    var canvas = document.createElement('canvas');
+    canvas.style.cssText = 'display:block;width:100%;height:calc(100% - 30px);image-rendering:pixelated;';
+    canvas.width = 1024; canvas.height = 768;
+    var serial = document.createElement('textarea');
+    serial.style.cssText = 'width:100%;height:30px;background:#0a0a0a;color:#0f0;border:none;'
+      + 'border-top:1px solid #222;font-family:monospace;font-size:11px;resize:none;padding:4px 6px;';
+    serial.readOnly = true;
+    wrap.appendChild(canvas); wrap.appendChild(serial);
+    body.appendChild(wrap);
+
+    setBar(88);
+
+    var blobs = [];
+    if (isoUrl && isoUrl.indexOf('blob:') === 0) blobs.push(isoUrl);
+
+    var bootTimeout = setTimeout(function() {
+      var s = body.querySelector('.pstatus');
+      if (s) s.textContent = '⏱ Still loading… On iPad/Safari this can take several minutes or may not complete.';
+    }, 60000);
+
+    try {
+      var cfg = {
+        wasm_path:        VM_BASE + 'v86.wasm',
+        bios:             { url: VM_BASE + 'seabios.bin'  },
+        vga_bios:         { url: VM_BASE + 'vgabios.bin'  },
+        cdrom:            { url: isoUrl || VM_BASE + 'linux.iso' },
+        memory_size:      ramBytes,
+        vga_memory_size:  8 * 1024 * 1024,
+        autostart:        true,
+        screen_container: wrap,
+        disable_jit:      br.isIOS
       };
 
-      input.click();
-    };
-
-    vmContainer.querySelector("#vmStartNormal").onclick = () => {
-      showLoadingScreen("Booting Linux VM…");
-      startLinuxVM({}, vmRamBytes);
-    };
-  }
-
-  function showLoadingScreen(msg) {
-    vmContainer.innerHTML = `
-      <div class="vm-progress">
-        <div style="font-size:16px;color:#4da3ff;">🐧 ${msg}</div>
-        <div class="progress-bar-wrap"><div class="progress-bar" id="vmBar"></div></div>
-        <div class="vm-status" id="vmStatusText">Initializing…</div>
-        <div style="font-size:12px;color:#666;">RAM allocated: ${ramLabel(vmRamMB)}</div>
-      </div>
-    `;
-    // Animate the bar to show activity
-    let pct = 0;
-    const interval = setInterval(() => {
-      pct = Math.min(pct + Math.random() * 8, 85);
-      const bar = document.getElementById("vmBar");
-      if (bar) bar.style.width = pct + "%";
-      else clearInterval(interval);
-    }, 400);
-    window._vmBarInterval = interval;
-  }
-
-  function startLinuxVM(additionalFiles, ramBytes) {
-    clearInterval(window._vmBarInterval);
-
-    const setStatus = (msg) => { const el = document.getElementById("vmStatusText"); if (el) el.textContent = msg; };
-    const setBar = (pct) => { const el = document.getElementById("vmBar"); if (el) el.style.width = pct + "%"; };
-
-    function buildScreenContainer() {
-      // v86 needs: a wrapper div with a <canvas> and <textarea> inside
-      vmContainer.innerHTML = "";
-      vmContainer.style.background = "#000";
-      const wrap = document.createElement("div");
-      wrap.style.cssText = "width:100%;height:100%;position:relative;overflow:hidden;";
-      const canvas = document.createElement("canvas");
-      canvas.style.cssText = "display:block;width:100%;height:calc(100% - 28px);";
-      canvas.width = 1024; canvas.height = 768;
-      const ta = document.createElement("textarea");
-      ta.style.cssText = "width:100%;height:28px;background:#0a0a0a;color:#0f0;border:none;border-top:1px solid #333;font-family:monospace;font-size:11px;resize:none;box-sizing:border-box;padding:4px;";
-      ta.readOnly = true;
-      wrap.appendChild(canvas);
-      wrap.appendChild(ta);
-      vmContainer.appendChild(wrap);
-      return wrap;
-    }
-
-    function bootVM() {
-      if (typeof window.V86 !== "function") {
-        vmContainer.innerHTML = "";
-        const d = document.createElement("div"); d.className = "vm-menu";
-        d.innerHTML = '<p style="color:#f66;">Failed: window.V86 is not a function after loading libv86.js.<br>typeof window.V86 = ' + typeof window.V86 + '</p><button id="vmRetryBtn">Back</button>';
-        vmContainer.appendChild(d);
-        d.querySelector("#vmRetryBtn").onclick = showVMMenu;
-        return;
+      if (Object.keys(fsFiles).length > 0) {
+        cfg.filesystem = { baseurl: VM_BASE+'fs/', basefs: fsFiles };
       }
 
-      setStatus("Building screen…"); setBar(88);
-      const screenDiv = buildScreenContainer();
+      var vm = new window.V86(cfg);
 
-      setStatus("Starting VM…"); setBar(92);
-      try {
-        const vm = new window.V86({
-          wasm_url:         "https://runtimeeee.github.io/ide/vm/v86.wasm",
-          bios_url:         "https://runtimeeee.github.io/ide/vm/seabios.bin",
-          vga_bios_url:     "https://runtimeeee.github.io/ide/vm/vgabios.bin",
-          cdrom_url:        "https://runtimeeee.github.io/ide/vm/linux.iso",
-          memory_size:      ramBytes,
-          vga_memory_size:  8 * 1024 * 1024,
-          autostart:        true,
-          screen_container: screenDiv,
-          filesystem:       { baseurl: "", basefs: additionalFiles }
-        });
-        vm.add_listener("emulator-started", () => { setBar(100); setStatus("VM running!"); });
-      } catch (err) {
-        vmContainer.innerHTML = "";
-        const d = document.createElement("div"); d.className = "vm-menu";
-        d.innerHTML = '<p style="color:#f66;">VM error: ' + err.message + '</p>'
-          + '<pre style="font-size:10px;color:#aaa;max-width:480px;overflow:auto;white-space:pre-wrap;">' + (err.stack||"") + '</pre>'
-          + '<button id="vmRetryBtn">Back</button>';
-        vmContainer.appendChild(d);
-        d.querySelector("#vmRetryBtn").onclick = showVMMenu;
-      }
+      vm.add_listener('emulator-loaded', function() {
+        setBar(94); setStatus('OS loading…');
+        blobs.forEach(function(u){ URL.revokeObjectURL(u); });
+      });
+      vm.add_listener('emulator-started', function() {
+        clearTimeout(bootTimeout);
+        setBar(100); setStatus('Running!');
+      });
+
+    } catch(err) {
+      clearTimeout(bootTimeout);
+      blobs.forEach(function(u){ URL.revokeObjectURL(u); });
+      showError('VM start failed: '+err.message, err.stack||'');
     }
+  }
 
-    function loadLibAndBoot() {
-      if (typeof window.V86 === "function") { bootVM(); return; }
-      setStatus("Loading libv86.js…"); setBar(20);
-
-      // Fetch as text and eval so the IIFE's .call(this) runs in window scope
-      fetch("https://runtimeeee.github.io/ide/vm/libv86.js")
-        .then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.text(); })
-        .then(src => {
-          setBar(55); setStatus("Evaluating libv86…");
-          // Use indirect eval so `this` inside the IIFE resolves to window
-          const fn = new Function(src);
-          fn.call(window);
-          setBar(70); setStatus("libv86 ready, booting…");
-          setTimeout(bootVM, 200);
-        })
-        .catch(err => {
-          vmContainer.innerHTML = "";
-          const d = document.createElement("div"); d.className = "vm-menu";
-          d.innerHTML = '<p style="color:#f66;">Failed to fetch libv86.js:<br>' + err.message + '</p><button id="vmRetryBtn">Back</button>';
-          vmContainer.appendChild(d);
-          d.querySelector("#vmRetryBtn").onclick = showVMMenu;
-        });
-    }
-
-    loadLibAndBoot();
+  // ── Kick off ──
+  if (autoFiles && Object.keys(autoFiles).length > 0) {
+    showBoot('Loading '+Object.keys(autoFiles).length+' file(s)…');
+    loadAndBoot(autoFiles, null);
+  } else {
+    showMenu();
   }
 }
+
+})();
 </script>
+
+<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
 </body>
 </html>
