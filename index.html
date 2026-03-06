@@ -16,13 +16,34 @@ body, html { margin:0; padding:0; width:100%; height:100%; overflow:hidden; font
 #desktop { position:relative; height:90vh; width:100%; overflow:hidden; }
 .window { position:absolute; width:80%; height:70%; max-width:1200px; max-height:900px; min-width:600px; min-height:400px; background:#2d2d2d; border:1px solid #555; display:flex; flex-direction:column; }
 .titlebar { background:#3c3c3c; padding:10px; display:flex; justify-content:space-between; cursor:move; gap:5px; }
-.frame { flex:1; border:none; width:100%; height:100%; }
+.frame { flex:1; border:none; width:100%; height:100%; overflow:hidden; }
 .topfullscreen { box-shadow:0 0 20px #4da3ff; z-index:99999 !important; }
 .iframe-full { box-shadow:0 0 20px #4da3ff; }
+
+/* VM UI */
+.vm-menu {
+  display:flex; flex-direction:column; justify-content:center; align-items:center;
+  height:100%; color:#ccc; gap:16px;
+}
+.vm-menu h2 { margin:0 0 8px 0; color:#4da3ff; }
+.vm-menu button {
+  padding:10px 24px; font-size:15px; background:#3a3a3a; color:#eee;
+  border:1px solid #555; border-radius:6px; cursor:pointer; min-width:220px;
+  transition: background 0.2s, border-color 0.2s;
+}
+.vm-menu button:hover { background:#4da3ff22; border-color:#4da3ff; }
+.ram-info { font-size:12px; color:#888; margin-top:-8px; }
+
+.vm-progress {
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  height:100%; gap:14px; color:#ccc;
+}
+.progress-bar-wrap { width:320px; background:#333; border-radius:8px; overflow:hidden; height:12px; }
+.progress-bar { height:100%; background:#4da3ff; width:0%; transition:width 0.3s; }
+.vm-status { font-size:13px; color:#aaa; }
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
-<script src="https://runtimeeee.github.io/ide/vm/libv86.js"></script>
 </head>
 <body>
 
@@ -59,220 +80,415 @@ body, html { margin:0; padding:0; width:100%; height:100%; overflow:hidden; font
 </div>
 
 <script>
+// ── Splash animation ──────────────────────────────────────────────
 const letters = document.querySelectorAll('.letter');
-letters.forEach((letter,index)=>{
-  if(index===0) return;
-  setTimeout(()=>{ letter.style.opacity=1; letter.style.transform='scale(1)'; }, index*200+600);
+letters.forEach((letter, index) => {
+  if (index === 0) return;
+  setTimeout(() => { letter.style.opacity = 1; letter.style.transform = 'scale(1)'; }, index * 200 + 600);
 });
-setTimeout(()=> letters[0].style.transform='scale(1)', 600);
-setTimeout(()=>{
-  document.getElementById('splash').style.opacity=0;
-  setTimeout(()=>{
-    document.getElementById('splash').style.display='none';
-    document.getElementById('ide').style.display='block';
-  },800);
-}, letters.length*200 + 1200);
+setTimeout(() => letters[0].style.transform = 'scale(1)', 600);
+setTimeout(() => {
+  document.getElementById('splash').style.opacity = 0;
+  setTimeout(() => {
+    document.getElementById('splash').style.display = 'none';
+    document.getElementById('ide').style.display = 'block';
+  }, 800);
+}, letters.length * 200 + 1200);
 
-const desktop = document.getElementById("desktop");
-let currentCode="";
-let currentContainer=null;
+// ── RAM detection ─────────────────────────────────────────────────
+function getVMRamMB() {
+  // navigator.deviceMemory gives GB (e.g. 4, 8, 16). It's available in Chrome/Edge.
+  // We use at most 50% of detected RAM so the host stays responsive.
+  const deviceGB = navigator.deviceMemory || null;
+  let ramMB;
 
-document.getElementById("editGlobal").onclick=()=>{ if(currentContainer) openEditor(currentContainer,currentCode); };
-document.getElementById("previewGlobal").onclick=()=>{ if(currentContainer) runApp(currentContainer,currentCode); };
-
-function drag(el,header){
-  let x=0,y=0,dx=0,dy=0;
-  header.onmousedown=e=>{
-    dx=e.clientX; dy=e.clientY;
-    document.onmousemove=move;
-    document.onmouseup=stop;
-  };
-  function move(e){
-    x=dx-e.clientX; y=dy-e.clientY;
-    dx=e.clientX; dy=e.clientY;
-    el.style.top=(el.offsetTop-y)+"px";
-    el.style.left=(el.offsetLeft-x)+"px";
+  if (deviceGB) {
+    // Use up to 50% of device RAM, clamped between 128 MB and 1024 MB
+    const halfMB = Math.floor((deviceGB * 1024) * 0.5);
+    ramMB = Math.min(1024, Math.max(128, halfMB));
+  } else {
+    // Fallback: try a rough heuristic via performance.memory (Chrome only)
+    try {
+      const totalJSHeap = window.performance.memory.jsHeapSizeLimit; // bytes
+      const totalMB = Math.floor(totalJSHeap / (1024 * 1024));
+      ramMB = Math.min(512, Math.max(128, Math.floor(totalMB * 0.3)));
+    } catch {
+      ramMB = 128; // safe conservative default
+    }
   }
-  function stop(){ document.onmousemove=null; }
+  return ramMB;
 }
 
-function runApp(container,code){
-  container.innerHTML="";
-  let frame=document.createElement("iframe");
-  frame.style.width="100%"; frame.style.height="100%";
-  frame.srcdoc=code;
+function ramLabel(mb) {
+  if (mb >= 1024) return (mb / 1024).toFixed(1) + ' GB';
+  return mb + ' MB';
+}
+
+// ── Core IDE state ────────────────────────────────────────────────
+const desktop = document.getElementById("desktop");
+let currentCode = "";
+let currentContainer = null;
+
+document.getElementById("editGlobal").onclick = () => { if (currentContainer) openEditor(currentContainer, currentCode); };
+document.getElementById("previewGlobal").onclick = () => { if (currentContainer) runApp(currentContainer, currentCode); };
+
+function drag(el, header) {
+  let x = 0, y = 0, dx = 0, dy = 0;
+  header.onmousedown = e => {
+    dx = e.clientX; dy = e.clientY;
+    document.onmousemove = move;
+    document.onmouseup = stop;
+  };
+  function move(e) {
+    x = dx - e.clientX; y = dy - e.clientY;
+    dx = e.clientX; dy = e.clientY;
+    el.style.top = (el.offsetTop - y) + "px";
+    el.style.left = (el.offsetLeft - x) + "px";
+  }
+  function stop() { document.onmousemove = null; }
+}
+
+function runApp(container, code) {
+  container.innerHTML = "";
+  let frame = document.createElement("iframe");
+  frame.style.width = "100%"; frame.style.height = "100%";
+  frame.srcdoc = code;
   container.appendChild(frame);
 }
 
-function openEditor(container,code){
-  container.innerHTML=`<div id="editor"></div>`;
-  require.config({ paths:{vs:'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs'} });
-  require(['vs/editor/editor.main'],function(){
-    window.editor = monaco.editor.create(document.getElementById('editor'),{
-      value:code,
-      language:"html",
-      theme:"vs-dark",
-      automaticLayout:true
+function openEditor(container, code) {
+  container.innerHTML = `<div id="editor" style="width:100%;height:100%;"></div>`;
+  require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' } });
+  require(['vs/editor/editor.main'], function () {
+    window.editor = monaco.editor.create(document.getElementById('editor'), {
+      value: code,
+      language: "html",
+      theme: "vs-dark",
+      automaticLayout: true
     });
   });
-  let save=document.createElement("button");
-  save.textContent="Save + Run";
-  save.style.position="absolute"; save.style.top="60px"; save.style.right="20px";
+  let save = document.createElement("button");
+  save.textContent = "Save + Run";
+  save.style.cssText = "position:absolute;top:60px;right:20px;z-index:10;padding:6px 14px;";
   container.appendChild(save);
-  save.onclick=()=>{
-    currentCode=editor.getValue();
-    runApp(container,currentCode);
+  save.onclick = () => {
+    currentCode = editor.getValue();
+    runApp(container, currentCode);
   };
 }
 
-function createWindow(fileName, code, isApp=false){
-  let win=document.createElement("div");
-  win.className="window";
-  win.style.top=`${desktop.offsetHeight*0.1}px`;
-  win.style.left=`${desktop.offsetWidth*0.1}px`;
+function createWindow(fileName, code, isApp = false) {
+  let win = document.createElement("div");
+  win.className = "window";
+  win.style.top = `${desktop.offsetHeight * 0.1}px`;
+  win.style.left = `${desktop.offsetWidth * 0.1}px`;
 
-  let title=document.createElement("div"); title.className="titlebar";
-  let label=document.createElement("span"); label.textContent=fileName;
+  let title = document.createElement("div"); title.className = "titlebar";
+  let label = document.createElement("span"); label.textContent = fileName;
 
-  let fsButton=document.createElement("button"); fsButton.textContent="Fullscreen (IDE)";
-  let fsTopButton=document.createElement("button"); fsTopButton.textContent="Full Fullscreen";
-  let fsIframeButton=document.createElement("button"); fsIframeButton.textContent="Iframe Fullscreen";
+  let fsButton = document.createElement("button"); fsButton.textContent = "Fullscreen (IDE)";
+  let fsTopButton = document.createElement("button"); fsTopButton.textContent = "Full Fullscreen";
+  let fsIframeButton = document.createElement("button"); fsIframeButton.textContent = "Iframe Fullscreen";
 
   title.appendChild(label); title.appendChild(fsButton); title.appendChild(fsTopButton); title.appendChild(fsIframeButton);
 
-  let container=document.createElement("div"); container.className="frame";
+  let container = document.createElement("div"); container.className = "frame";
   win.appendChild(title); win.appendChild(container);
   desktop.appendChild(win);
-  drag(win,title);
+  drag(win, title);
 
-  if(!isApp || fileName.endsWith(".html") || fileName.endsWith(".js")){
-    runApp(container,code);
+  if (!isApp || fileName.endsWith(".html") || fileName.endsWith(".js")) {
+    runApp(container, code);
   } else {
-    container.innerHTML=`<div style="padding:10px; color:#ccc;">
+    container.innerHTML = `<div style="padding:10px;color:#ccc;">
       <p>App cannot run natively.<br>Use Linux VM for Linux apps.</p></div>`;
   }
 
-  fsButton.onclick=()=>{
-    win.style.position="absolute"; 
-    win.style.top=`${desktop.offsetHeight*0.05}px`; 
-    win.style.left=`${desktop.offsetWidth*0.05}px`;
-    win.style.width=`${desktop.offsetWidth*0.9}px`; 
-    win.style.height=`${desktop.offsetHeight*0.85}px`;
+  fsButton.onclick = () => {
+    win.style.position = "absolute";
+    win.style.top = `${desktop.offsetHeight * 0.05}px`;
+    win.style.left = `${desktop.offsetWidth * 0.05}px`;
+    win.style.width = `${desktop.offsetWidth * 0.9}px`;
+    win.style.height = `${desktop.offsetHeight * 0.85}px`;
   };
-  fsTopButton.onclick=()=>{
-    if(!win.classList.contains("topfullscreen")){
+  fsTopButton.onclick = () => {
+    if (!win.classList.contains("topfullscreen")) {
       win.classList.add("topfullscreen");
-      win.style.position="fixed"; win.style.top=0; win.style.left=0;
-      win.style.width="100%"; win.style.height="100%";
+      win.style.position = "fixed"; win.style.top = 0; win.style.left = 0;
+      win.style.width = "100%"; win.style.height = "100%";
     } else {
       win.classList.remove("topfullscreen");
-      win.style.width="80%"; win.style.height="70%";
-      win.style.top=`${desktop.offsetHeight*0.1}px`;
-      win.style.left=`${desktop.offsetWidth*0.1}px`;
-      win.style.position="absolute";
+      win.style.width = "80%"; win.style.height = "70%";
+      win.style.top = `${desktop.offsetHeight * 0.1}px`;
+      win.style.left = `${desktop.offsetWidth * 0.1}px`;
+      win.style.position = "absolute";
     }
   };
-  fsIframeButton.onclick=()=>{
-    let frame=container.querySelector('iframe');
-    if(!frame) return;
-    if(!frame.classList.contains('iframe-full')){
+  fsIframeButton.onclick = () => {
+    let frame = container.querySelector('iframe');
+    if (!frame) return;
+    if (!frame.classList.contains('iframe-full')) {
       frame.classList.add('iframe-full');
-      frame.style.position='absolute'; frame.style.top='0'; frame.style.left='0';
-      frame.style.width='100%'; frame.style.height='100%'; frame.style.zIndex=9999;
+      frame.style.cssText = "position:absolute;top:0;left:0;width:100%;height:100%;z-index:9999;";
     } else {
       frame.classList.remove('iframe-full');
-      frame.style.position=''; frame.style.top=''; frame.style.left='';
-      frame.style.width='100%'; frame.style.height='100%'; frame.style.zIndex='';
+      frame.style.cssText = "width:100%;height:100%;";
     }
   };
 }
 
-function handleUpload(single, app=false){
-  const input=document.createElement("input"); 
-  input.type="file"; input.multiple=!single;
-  if(app) input.accept=".html,.js,.wasm,.exe,.deb,.AppImage,.rpm";
-  else input.accept=".html,.js,.css";
+const LINUX_EXT = /\.(deb|rpm|AppImage|sh|bin|tar|tar\.gz|tar\.bz2|tar\.xz)$/i;
 
-  input.onchange=e=>{
-    const files=e.target.files;
-    Array.from(files).forEach(file=>{
-      if(app && /\.(deb|AppImage|rpm)$/i.test(file.name)){
-        document.getElementById("openLinuxVM").click();
-      }
-      file.text().then(code=>{
-        createWindow(file.name, code, app);
-      }).catch(err=>{
-        if(app && /\.(deb|AppImage|rpm)$/i.test(file.name)){
-          alert("Binary Linux app cannot be previewed here. VM will open.");
-        }
+function handleUpload(single, app = false) {
+  const input = document.createElement("input");
+  input.type = "file"; input.multiple = !single;
+  if (app) input.accept = ".html,.js,.wasm,.exe,.deb,.AppImage,.rpm,.sh,.bin,.tar,.zip";
+  else input.accept = ".html,.js,.css";
+
+  input.onchange = e => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+
+    // Separate linux binaries from web files
+    const linuxFiles = files.filter(f => LINUX_EXT.test(f.name));
+    const webFiles   = files.filter(f => !LINUX_EXT.test(f.name));
+
+    // Auto-route linux files straight into a VM window with them pre-loaded
+    if (linuxFiles.length > 0) {
+      const toast = showToast(`🐧 Detected ${linuxFiles.length} Linux file(s) — opening VM…`);
+      Promise.all(linuxFiles.map(f =>
+        f.arrayBuffer().then(buf => ({ name: f.name, data: new Uint8Array(buf) }))
+      )).then(loaded => {
+        const fsFiles = {};
+        loaded.forEach(f => { fsFiles[f.name] = f.data; });
+        openLinuxVMWithFiles(fsFiles); // boot straight into VM with files
+        toast.remove();
+      }).catch(err => {
+        toast.remove();
+        showToast(`⚠️ Failed to load Linux files: ${err.message}`, true);
       });
+    }
+
+    // Handle web files normally
+    webFiles.forEach(file => {
+      file.text().then(code => createWindow(file.name, code, app));
     });
   };
   input.click();
 }
 
-document.getElementById("uploadSingleFile").onclick=()=>handleUpload(true,false);
-document.getElementById("uploadMultipleFiles").onclick=()=>handleUpload(false,false);
-document.getElementById("uploadSingleApp").onclick=()=>handleUpload(true,true);
-document.getElementById("uploadMultipleApps").onclick=()=>handleUpload(false,true);
+function showToast(msg, isError = false) {
+  const t = document.createElement("div");
+  t.textContent = msg;
+  t.style.cssText = `position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+    background:${isError ? '#7a2020' : '#1a3a5c'};color:#eee;padding:10px 22px;
+    border-radius:8px;font-size:14px;z-index:999999;border:1px solid ${isError ? '#f66' : '#4da3ff'};
+    box-shadow:0 4px 20px #0008;pointer-events:none;`;
+  document.body.appendChild(t);
+  if (isError) setTimeout(() => t.remove(), 4000);
+  return t;
+}
 
-// LINUX VM
+document.getElementById("uploadSingleFile").onclick = () => handleUpload(true, false);
+document.getElementById("uploadMultipleFiles").onclick = () => handleUpload(false, false);
+document.getElementById("uploadSingleApp").onclick = () => handleUpload(true, true);
+document.getElementById("uploadMultipleApps").onclick = () => handleUpload(false, true);
+
+// ── Linux VM ──────────────────────────────────────────────────────
+// Opens a VM window. If fsFiles provided, skips the menu and boots immediately.
+function openLinuxVMWithFiles(preloadedFiles) {
+  const vmRamMB = getVMRamMB();
+  const vmRamBytes = vmRamMB * 1024 * 1024;
+  _spawnVMWindow(vmRamMB, vmRamBytes, preloadedFiles);
+}
+
 document.getElementById("openLinuxVM").onclick = () => {
-  let vmWin = document.createElement("div"); vmWin.className = "window";
+  const vmRamMB = getVMRamMB();
+  const vmRamBytes = vmRamMB * 1024 * 1024;
+  _spawnVMWindow(vmRamMB, vmRamBytes, null);
+};
+
+function _spawnVMWindow(vmRamMB, vmRamBytes, autoFiles) {
+
+  let vmWin = document.createElement("div");
+  vmWin.className = "window";
   vmWin.style.top = `${desktop.offsetHeight * 0.1}px`;
   vmWin.style.left = `${desktop.offsetWidth * 0.1}px`;
 
-  let title = document.createElement("div"); title.className = "titlebar";
-  title.innerHTML = `<span>Linux VM</span>`;
+  let title = document.createElement("div");
+  title.className = "titlebar";
+  const fileNames = autoFiles ? Object.keys(autoFiles).join(", ") : "";
+  title.innerHTML = `<span>Linux VM${fileNames ? " \u2014 " + fileNames : ""}</span><span style="font-size:12px;color:#aaa;">RAM: ${ramLabel(vmRamMB)}</span>`;
   vmWin.appendChild(title);
 
-  let vmContainer = document.createElement("div"); vmContainer.className = "frame";
-  vmWin.appendChild(vmContainer); desktop.appendChild(vmWin);
+  let vmContainer = document.createElement("div");
+  vmContainer.className = "frame";
+  vmWin.appendChild(vmContainer);
+  desktop.appendChild(vmWin);
   drag(vmWin, title);
 
-  vmContainer.innerHTML = `
-    <div style="display:flex; flex-direction:column; justify-content:center; align-items:center; height:100%; color:#ccc;">
-      <h2>Linux VM Options</h2>
-      <button id="uploadLinuxApp">Upload Linux App File</button>
-      <button id="startNormalVM">Start Normal VM</button>
-    </div>
-  `;
-
-  vmContainer.querySelector("#uploadLinuxApp").onclick = () => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = ".deb,.AppImage,.rpm";
-    input.onchange = e => {
-      const file = e.target.files[0];
-      if(!file) return;
-      const loading = document.createElement("p"); loading.textContent="Loading "+file.name+"..."; vmContainer.appendChild(loading);
-      file.arrayBuffer().then(buffer => {
-        let files = {};
-        files[file.name] = new Uint8Array(buffer);
-        startLinuxVM(files);
-      });
-    };
-    input.click();
-  };
-
-  vmContainer.querySelector("#startNormalVM").onclick = () => {
-    startLinuxVM();
-  };
-
-  function startLinuxVM(additionalFiles = {}) {
-    vmContainer.innerHTML = "";
-    const vm = new V86Starter({
-      wasm_url: "https://runtimeeee.github.io/ide/vm/v86.wasm",
-      bios_url: "https://runtimeeee.github.io/ide/vm/seabios.bin",
-      vga_bios_url: "https://runtimeeee.github.io/ide/vm/vgabios.bin",
-      cdrom_url: "https://runtimeeee.github.io/ide/vm/linux.iso",
-      memory_size: 64*1024*1024,  // reduce RAM for faster loading
-      autostart: true,
-      screen_container: vmContainer,
-      filesystem: { base_fs: additionalFiles }
-    });
+  // If files were passed in directly, skip the menu and boot immediately
+  if (autoFiles && Object.keys(autoFiles).length > 0) {
+    const names = Object.keys(autoFiles).join(", ");
+    showLoadingScreen("Loading: " + names);
+    startLinuxVM(autoFiles, vmRamBytes);
+  } else {
+    showVMMenu();
   }
-};
+
+  function showVMMenu() {
+    vmContainer.innerHTML = `
+      <div class="vm-menu">
+        <h2>🐧 Linux VM</h2>
+        <p class="ram-info">VM will use ${ramLabel(vmRamMB)} of RAM (auto-detected)</p>
+        <button id="vmUploadFiles">📦 Upload Linux App Files</button>
+        <button id="vmStartNormal">▶ Start VM (no files)</button>
+      </div>
+    `;
+
+    vmContainer.querySelector("#vmUploadFiles").onclick = () => {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.multiple = true;
+      // Accept all common Linux app formats
+      input.accept = ".deb,.rpm,.AppImage,.sh,.tar,.tar.gz,.tar.bz2,.tar.xz,.zip,.bin";
+
+      input.onchange = e => {
+        const files = Array.from(e.target.files);
+        if (!files.length) return;
+
+        showLoadingScreen(`Loading ${files.length} file(s)…`);
+
+        Promise.all(files.map(f =>
+          f.arrayBuffer().then(buf => ({ name: f.name, data: new Uint8Array(buf) }))
+        )).then(loaded => {
+          const fsFiles = {};
+          loaded.forEach(f => { fsFiles[f.name] = f.data; });
+          startLinuxVM(fsFiles, vmRamBytes);
+        }).catch(err => {
+          vmContainer.innerHTML = `<div class="vm-menu"><p style="color:#f66;">Failed to load files: ${err.message}</p><button onclick="">Retry</button></div>`;
+          vmContainer.querySelector("button").onclick = showVMMenu;
+        });
+      };
+
+      input.click();
+    };
+
+    vmContainer.querySelector("#vmStartNormal").onclick = () => {
+      showLoadingScreen("Booting Linux VM…");
+      startLinuxVM({}, vmRamBytes);
+    };
+  }
+
+  function showLoadingScreen(msg) {
+    vmContainer.innerHTML = `
+      <div class="vm-progress">
+        <div style="font-size:16px;color:#4da3ff;">🐧 ${msg}</div>
+        <div class="progress-bar-wrap"><div class="progress-bar" id="vmBar"></div></div>
+        <div class="vm-status" id="vmStatusText">Initializing…</div>
+        <div style="font-size:12px;color:#666;">RAM allocated: ${ramLabel(vmRamMB)}</div>
+      </div>
+    `;
+    // Animate the bar to show activity
+    let pct = 0;
+    const interval = setInterval(() => {
+      pct = Math.min(pct + Math.random() * 8, 85);
+      const bar = document.getElementById("vmBar");
+      if (bar) bar.style.width = pct + "%";
+      else clearInterval(interval);
+    }, 400);
+    window._vmBarInterval = interval;
+  }
+
+  function startLinuxVM(additionalFiles, ramBytes) {
+    clearInterval(window._vmBarInterval);
+
+    const setStatus = (msg) => { const el = document.getElementById("vmStatusText"); if (el) el.textContent = msg; };
+    const setBar = (pct) => { const el = document.getElementById("vmBar"); if (el) el.style.width = pct + "%"; };
+
+    function buildScreenContainer() {
+      // v86 needs: a wrapper div with a <canvas> and <textarea> inside
+      vmContainer.innerHTML = "";
+      vmContainer.style.background = "#000";
+      const wrap = document.createElement("div");
+      wrap.style.cssText = "width:100%;height:100%;position:relative;overflow:hidden;";
+      const canvas = document.createElement("canvas");
+      canvas.style.cssText = "display:block;width:100%;height:calc(100% - 28px);";
+      canvas.width = 1024; canvas.height = 768;
+      const ta = document.createElement("textarea");
+      ta.style.cssText = "width:100%;height:28px;background:#0a0a0a;color:#0f0;border:none;border-top:1px solid #333;font-family:monospace;font-size:11px;resize:none;box-sizing:border-box;padding:4px;";
+      ta.readOnly = true;
+      wrap.appendChild(canvas);
+      wrap.appendChild(ta);
+      vmContainer.appendChild(wrap);
+      return wrap;
+    }
+
+    function bootVM() {
+      if (typeof window.V86 !== "function") {
+        vmContainer.innerHTML = "";
+        const d = document.createElement("div"); d.className = "vm-menu";
+        d.innerHTML = '<p style="color:#f66;">Failed: window.V86 is not a function after loading libv86.js.<br>typeof window.V86 = ' + typeof window.V86 + '</p><button id="vmRetryBtn">Back</button>';
+        vmContainer.appendChild(d);
+        d.querySelector("#vmRetryBtn").onclick = showVMMenu;
+        return;
+      }
+
+      setStatus("Building screen…"); setBar(88);
+      const screenDiv = buildScreenContainer();
+
+      setStatus("Starting VM…"); setBar(92);
+      try {
+        const vm = new window.V86({
+          wasm_url:         "https://runtimeeee.github.io/ide/vm/v86.wasm",
+          bios_url:         "https://runtimeeee.github.io/ide/vm/seabios.bin",
+          vga_bios_url:     "https://runtimeeee.github.io/ide/vm/vgabios.bin",
+          cdrom_url:        "https://runtimeeee.github.io/ide/vm/linux.iso",
+          memory_size:      ramBytes,
+          vga_memory_size:  8 * 1024 * 1024,
+          autostart:        true,
+          screen_container: screenDiv,
+          filesystem:       { baseurl: "", basefs: additionalFiles }
+        });
+        vm.add_listener("emulator-started", () => { setBar(100); setStatus("VM running!"); });
+      } catch (err) {
+        vmContainer.innerHTML = "";
+        const d = document.createElement("div"); d.className = "vm-menu";
+        d.innerHTML = '<p style="color:#f66;">VM error: ' + err.message + '</p>'
+          + '<pre style="font-size:10px;color:#aaa;max-width:480px;overflow:auto;white-space:pre-wrap;">' + (err.stack||"") + '</pre>'
+          + '<button id="vmRetryBtn">Back</button>';
+        vmContainer.appendChild(d);
+        d.querySelector("#vmRetryBtn").onclick = showVMMenu;
+      }
+    }
+
+    function loadLibAndBoot() {
+      if (typeof window.V86 === "function") { bootVM(); return; }
+      setStatus("Loading libv86.js…"); setBar(20);
+
+      // Fetch as text and eval so the IIFE's .call(this) runs in window scope
+      fetch("https://runtimeeee.github.io/ide/vm/libv86.js")
+        .then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.text(); })
+        .then(src => {
+          setBar(55); setStatus("Evaluating libv86…");
+          // Use indirect eval so `this` inside the IIFE resolves to window
+          const fn = new Function(src);
+          fn.call(window);
+          setBar(70); setStatus("libv86 ready, booting…");
+          setTimeout(bootVM, 200);
+        })
+        .catch(err => {
+          vmContainer.innerHTML = "";
+          const d = document.createElement("div"); d.className = "vm-menu";
+          d.innerHTML = '<p style="color:#f66;">Failed to fetch libv86.js:<br>' + err.message + '</p><button id="vmRetryBtn">Back</button>';
+          vmContainer.appendChild(d);
+          d.querySelector("#vmRetryBtn").onclick = showVMMenu;
+        });
+    }
+
+    loadLibAndBoot();
+  }
+}
 </script>
 </body>
 </html>
